@@ -1,21 +1,27 @@
 import torch
 import torch.nn as nn
-import torchvision.models as models
 
-class VisualBackbone(nn.Module):
+class EEGBackbone(nn.Module):
     """
-    ResNet18-based backbone for face image feature extraction.
+    Simple 1D CNN for EEG feature extraction.
+    Input shape: [batch, channels, time]
     """
-    def __init__(self, embed_dim=256):
+    def __init__(self, embed_dim=128, in_channels=32):
         super().__init__()
-        base = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
-        self.feature_extractor = nn.Sequential(*list(base.children())[:-1])
-        self.fc = nn.Linear(512, embed_dim)
-        self.relu = nn.ReLU()
+
+        self.network = nn.Sequential(
+            nn.Conv1d(in_channels, 64, kernel_size=5, padding=2),
+            nn.ReLU(),
+            nn.Conv1d(64, 128, kernel_size=5, padding=2),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool1d(1)
+        )
+
+        self.fc = nn.Linear(128, embed_dim)
 
     def forward(self, x):
-        x = self.feature_extractor(x)     # [B,512,1,1]
-        x = x.view(x.size(0), -1)
-        x = self.relu(self.fc(x))
+        x = self.network(x).squeeze(-1)
+        x = self.fc(x)
         return x
+
 
